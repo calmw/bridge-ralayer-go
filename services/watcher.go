@@ -129,8 +129,11 @@ func (w *Watcher) PollBlocks() {
 			err := w.Vote(msg, currentBlock)
 			if err != nil {
 				w.Log.Error("ConfirmedRequest Vote err", "err", err, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+				log.Logger.Sugar().Error("ConfirmedRequest Vote err ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+					" reLayerAddress=", relayer.ThisReLayer.Address.String())
 			} else {
-				log.Logger.Info("ConfirmedRequest Vote success")
+				log.Logger.Sugar().Info("ConfirmedRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+					" reLayerAddress=", relayer.ThisReLayer.Address.String())
 			}
 		}
 
@@ -143,8 +146,11 @@ func (w *Watcher) PollBlocks() {
 			err := w.Vote(msg, currentBlock)
 			if err != nil {
 				w.Log.Error("CallRequest Vote err", "err", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+				log.Logger.Sugar().Error("CallRequest Vote err ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+					" reLayerAddress=", relayer.ThisReLayer.Address.String())
 			} else {
-				log.Logger.Info("CallRequest Vote success")
+				log.Logger.Sugar().Info("CallRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+					" reLayerAddress=", relayer.ThisReLayer.Address.String())
 			}
 		}
 
@@ -297,7 +303,6 @@ func (w *Watcher) Vote(msg DataMsg, currentBlock *big.Int) error {
 
 		}
 	} else if voteStatus == VotePassed {
-		log.Logger.Error("The vote already passed")
 		return errors.New("The vote already passed. ")
 	} else {
 		log.Logger.Error("The vote already cancelled")

@@ -117,7 +117,7 @@ func (e *Engine) GetSignatureCollectedEvent() {
 				log.Logger.Sugar().Info("remote callType Manual", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
 			} else {
 				executed, err := e.IsExecuted(voteMsg)
-				log.Logger.Sugar().Info("is execute", executed)
+				log.Logger.Sugar().Info("is execute ", executed)
 				if err != nil {
 					log.Logger.Error(err.Error())
 					e.Log.Error("IsExecuted err", "err", err)
