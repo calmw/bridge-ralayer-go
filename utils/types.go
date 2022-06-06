@@ -9,6 +9,7 @@ func Byte32ToByteSlice(b32 [32]byte) []byte {
 	}
 	return bytes
 }
+
 func ByteSliceToByte32(byteSlice []byte) [32]byte {
 	var bytes32 [32]byte
 	for i := 0; i < len(byteSlice); i++ {

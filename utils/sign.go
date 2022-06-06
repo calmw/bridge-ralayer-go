@@ -13,5 +13,4 @@ func Sign(messageId []byte, privateKey *ecdsa.PrivateKey) ([]byte, error) {
 	}
 
 	return signature, nil
-	//return hexutil.Encode(signature), nil
 }
