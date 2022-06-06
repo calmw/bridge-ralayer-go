@@ -128,14 +128,14 @@ func (e *Engine) GetSignatureCollectedEvent() {
 							log.Logger.Error(err.Error())
 							e.Log.Error("Execute err", "err", err)
 						}
-						log.Logger.Info("Execute")
+						log.Logger.Sugar().Info("Execute success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
 					} else {
 						_, err := e.Confirm(voteMsg)
 						if err != nil {
 							log.Logger.Error(err.Error())
 							e.Log.Error("Confirm err", "err", err)
 						}
-						log.Logger.Info("Confirm")
+						log.Logger.Sugar().Info("Confirm success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
 					}
 					e.Log.Error("Execute or Confirm success")
 				}
