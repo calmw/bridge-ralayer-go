@@ -128,14 +128,21 @@ func (e *Engine) GetSignatureCollectedEvent() {
 							log.Logger.Error(err.Error())
 							e.Log.Error("Execute err", "err", err)
 						}
-						log.Logger.Sugar().Info("Execute success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+						log.Logger.Sugar().Info("Execute success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
+
+						_, err = e.Execute(voteMsg)
+						if err != nil {
+							log.Logger.Error(err.Error())
+							e.Log.Error("Execute err", "err", err)
+						}
+						log.Logger.Sugar().Info("Execute success2 messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
 					} else {
 						_, err := e.Confirm(voteMsg)
 						if err != nil {
 							log.Logger.Error(err.Error())
 							e.Log.Error("Confirm err", "err", err)
 						}
-						log.Logger.Sugar().Info("Confirm success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+						log.Logger.Sugar().Info("Confirm success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
 					}
 					e.Log.Error("Execute or Confirm success")
 				}

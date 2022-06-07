@@ -3,7 +3,7 @@ chain_name = "Main"
 chain_id = 3
 #endpoint = "https://ropsten.infura.io/v3/f2ff8becef8e40df950e0e827992c5e0"
 endpoint = "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-manager_address = "0xe4d308229f72bacfdcdd225585d50b608bd5aa1b"
+manager_address = "0x4006cfcd2afadba7285d30d1049fe4fcd0481251"
 
 
 [[chains]]
@@ -11,9 +11,9 @@ chain_name = "Ropsten"
 id = 2 # Self defined
 chain_id = 3
 vote_chain = true
-start_block = 0 # Get the start block from the keystore. If the start block value is 0
+start_block = 12339490 # Get the start block from the keystore. If the start block value is 0
 endpoint = "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-bridge_address = "0x04e0618e1ed9d7d9e1191d325a4a726d038300fe"
+bridge_address = "0x04e0618e1eD9d7D9E1191D325a4A726D038300Fe"
 reLayer_private_key = "8699040b13da6c1994f97bef8d2fe458bf5c23e6ca5a97d45bd4663eaf90b856"
 
 [[chains]]
@@ -21,7 +21,7 @@ chain_name = "Rinkeby"
 id = 1 # Self defined
 chain_id = 4
 vote_chain = false
-start_block = 0 # Get the start block from the keystore. If the start block value is 0
+start_block = 10808709 # Get the start block from the keystore. If the start block value is 0
 endpoint = "https://rinkeby.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
 bridge_address = "0xf694ffbbdb87442177e13e464267e544efc98f03"
 reLayer_private_key = "c813f8c65d2c26c019bdf65b64fd55128d27180d9f080f5d1d3e4729a1d4b5d3"
