@@ -70,20 +70,13 @@ func main() {
 			Aliases: []string{"d"},
 			Usage:   "deploy contract",
 			Action: func(c *cli.Context) error {
-				fmt.Println("added task: ", c.Args().First())
+				fmt.Println("deploy contract: ", c.Args().First())
 				return nil
 			},
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "privateKey",
-					Value:    "dd",
-					Usage:    "reLayer private key",
-					Required: true,
-				},
-				&cli.StringFlag{
-					Name:     "address",
-					Value:    "fff",
-					Usage:    "reLayer address",
+					Usage:    "admin private key",
 					Required: true,
 				},
 			},
