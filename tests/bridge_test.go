@@ -105,12 +105,18 @@ func TestCallRemote(t *testing.T) {
 	} else {
 		targetBridgeContractsIndex = bridgeContractsIndex - 1
 	}
-	fmt.Println(bridgeContractsIndex, targetBridgeContractsIndex)
+	var target common.Address
+	if BridgeContracts[targetBridgeContractsIndex].Id == 2 {
+		target = common.HexToAddress("0x0080b5ec2aaa531236df68bc91ff0d487a24eaeb")
+	} else {
+		target = common.HexToAddress("0xca98cd464a9cc69409de5bfec896a45985f670a3")
+	}
+	fmt.Println(bridgeContractsIndex, targetBridgeContractsIndex, BridgeContracts[targetBridgeContractsIndex].Id, target.String())
 	tx, err := BridgeContracts[bridgeContractsIndex].Contract.CallRemote(
 		BridgeContracts[bridgeContractsIndex].TransactOpts,
 		utils.ByteSliceToByte32(ResourceIdBytes),
-		uint32(BridgeContracts[targetBridgeContractsIndex].ChainId),
-		common.HexToAddress("0xf694ffbbdb87442177e13e464267e544efc98f03"),
+		uint32(BridgeContracts[targetBridgeContractsIndex].Id),
+		target,
 		data,
 	)
 	if err != nil {

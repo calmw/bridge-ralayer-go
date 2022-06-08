@@ -22,7 +22,8 @@ type Manager struct {
 type Bridge struct {
 	TransactOpts *bind.TransactOpts
 	Contract     *bridge.Bridge
-	ChainId      int64
+	Id           int
+	target       common.Address
 }
 
 var ResourceId = "3565375400000000000000000000000000000000000000000000000000000000"
@@ -63,6 +64,16 @@ func init() {
 	}
 
 	for i := 0; i < len(config.Config.Chains); i++ {
+		config.ChainCfg[config.Config.Chains[i].Id] = config.Chain{
+			Name:       config.Config.Chains[i].Name,
+			Id:         config.Config.Chains[i].Id,
+			ChainId:    config.Config.Chains[i].ChainId,
+			VoteChain:  config.Config.Chains[i].VoteChain,
+			Endpoint:   config.Config.Chains[i].Endpoint,
+			Bridge:     common.HexToAddress(config.Config.Chains[i].Bridge),
+			StartBlock: config.Config.Chains[i].StartBlock,
+		}
+
 		Cli, err := ethclient.Dial(config.Config.Chains[i].Endpoint)
 		if nil != err {
 			log.Logger.Error(err.Error())
@@ -75,8 +86,8 @@ func init() {
 			log.Logger.Error(err.Error())
 			return
 		}
-		b.ChainId = config.Config.Chains[i].ChainId
-		deployAuth, err := bind.NewKeyedTransactorWithChainID(deployPrivateKeyEcdsa, big.NewInt(config.Config.Chains[i].ChainId))
+		b.Id = config.Config.Chains[i].Id
+		deployAuth, err := bind.NewKeyedTransactorWithChainID(deployPrivateKeyEcdsa, big.NewInt(int64(config.ChainCfg[b.Id].ChainId)))
 		if err != nil {
 			log.Logger.Error(err.Error())
 			return
@@ -107,7 +118,7 @@ func init() {
 		log.Logger.Error(err.Error())
 		return
 	}
-	deployAuth, err := bind.NewKeyedTransactorWithChainID(deployPrivateKeyEcdsa, big.NewInt(config.Config.Engine.ChainId))
+	deployAuth, err := bind.NewKeyedTransactorWithChainID(deployPrivateKeyEcdsa, big.NewInt(int64(config.Config.Engine.ChainId)))
 	if err != nil {
 		log.Logger.Error(err.Error())
 		return

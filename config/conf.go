@@ -25,7 +25,7 @@ type Conf struct {
 
 type Engine struct {
 	Name           string
-	ChainId        int64
+	ChainId        int
 	Endpoint       string
 	StartBlock     *big.Int
 	ManagerAddress common.Address
@@ -33,7 +33,7 @@ type Engine struct {
 
 type EngineConfig struct {
 	Name           string `toml:"chain_name"`
-	ChainId        int64  `toml:"chain_id"`
+	ChainId        int    `toml:"chain_id"`
 	Endpoint       string `toml:"endpoint"`
 	ManagerAddress string `toml:"manager_address"`
 }
@@ -41,7 +41,7 @@ type EngineConfig struct {
 type ChainsConfig struct {
 	Name       string   `toml:"chain_name"`
 	Id         int      `toml:"id"`
-	ChainId    int64    `toml:"chain_id"`
+	ChainId    int      `toml:"chain_id"`
 	VoteChain  bool     `toml:"vote_chain"`
 	Endpoint   string   `toml:"endpoint"`
 	Bridge     string   `toml:"bridge_address"`
@@ -52,7 +52,7 @@ type ChainsConfig struct {
 type Chain struct {
 	Name       string
 	Id         int
-	ChainId    int64
+	ChainId    int
 	VoteChain  bool
 	Endpoint   string
 	Bridge     common.Address

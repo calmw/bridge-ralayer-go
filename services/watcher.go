@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -64,7 +65,7 @@ type Watcher struct {
 func NewWatcher(id int) (*Watcher, error) {
 	ethCli, err := ethclient.Dial(config.ChainCfg[id].Endpoint)
 	if nil != err {
-		log.Logger.Error(err.Error())
+		log.Logger.Sugar().Error(err.Error(), id)
 		return nil, err
 	}
 
@@ -125,16 +126,21 @@ func (w *Watcher) PollBlocks() {
 		if err != nil {
 			w.Log.Warn("get ConfirmedRequest logs", "err", err, "block", currentBlock.String())
 		} else {
-			internal.MessageAll.Save(msg.MessageId, msg.Data)
-			err := w.Vote(msg, currentBlock)
-			if err != nil {
-				w.Log.Error("ConfirmedRequest Vote err", "err", err, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
-				log.Logger.Sugar().Error("ConfirmedRequest Vote err ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
-					" reLayerAddress=", relayer.ThisReLayer.Address.String())
-			} else {
-				log.Logger.Sugar().Info("ConfirmedRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
-					" reLayerAddress=", relayer.ThisReLayer.Address.String())
-			}
+			w.Log.Warn("get ConfirmedRequest success ", "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
+			fmt.Println()
+			log.Logger.Sugar().Info("get ConfirmedRequest success ", "msg", msg, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
+			fmt.Println()
+			//返回消息交给业务层，暂不处理
+			//internal.MessageAll.Save(msg.MessageId, msg.Data)
+			//err := w.Vote(msg, currentBlock)
+			//if err != nil {
+			//	w.Log.Error("ConfirmedRequest Vote err", "err", err, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+			//	log.Logger.Sugar().Error("ConfirmedRequest Vote err ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+			//		" reLayerAddress=", relayer.ThisReLayer.Address.String())
+			//} else {
+			//	log.Logger.Sugar().Info("ConfirmedRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+			//		" reLayerAddress=", relayer.ThisReLayer.Address.String())
+			//}
 		}
 
 		// Parse out CallRequest events
@@ -142,15 +148,20 @@ func (w *Watcher) PollBlocks() {
 		if err != nil {
 			w.Log.Warn("get CallRequest logs", "err", err, "block", currentBlock.String())
 		} else {
+			w.Log.Info("get CallRequest logs success", "block", currentBlock.String(), "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
 			internal.MessageAll.Save(msg.MessageId, msg.Data)
 			err := w.Vote(msg, currentBlock)
 			if err != nil {
 				w.Log.Error("CallRequest Vote err", "err", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+				fmt.Println()
 				log.Logger.Sugar().Error("CallRequest Vote err ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
 					" reLayerAddress=", relayer.ThisReLayer.Address.String())
+				fmt.Println()
 			} else {
+				fmt.Println()
 				log.Logger.Sugar().Info("CallRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
 					" reLayerAddress=", relayer.ThisReLayer.Address.String())
+				fmt.Println()
 			}
 		}
 

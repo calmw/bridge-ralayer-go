@@ -102,7 +102,11 @@ func (e *Engine) GetSignatureCollectedEvent() {
 		if err != nil {
 			e.Log.Error("GetSignatureCollectedEvent err", "err", err, "block", currentBlock)
 		} else {
-			e.Log.Info("GetSignatureCollectedEvent, success", "voteMsg", voteMsg)
+			e.Log.Info("GetSignatureCollectedEvent, success", "messageId",
+				hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), "block", currentBlock)
+			fmt.Println()
+			log.Logger.Sugar().Info("GetSignatureCollectedEvent, success", "voteMsg", voteMsg)
+			fmt.Println()
 			chainConfig, err := e.ManagerContract.GetChainConfig(&bind.CallOpts{
 				From:    relayer.ThisReLayer.Address,
 				Context: context.Background(),
@@ -114,8 +118,10 @@ func (e *Engine) GetSignatureCollectedEvent() {
 			if chainConfig.RemoteCallType == 0 {
 				e.Log.Error("remote callType", "remote callType", "Manual", "messageId",
 					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
-				log.Logger.Sugar().Info("remote callType Manual", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+				log.Logger.Sugar().Info("remote callType Manual, exit", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
 			} else {
+				e.Log.Error("remote callType", "remote callType", "auto", "messageId",
+					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
 				executed, err := e.IsExecuted(voteMsg)
 				log.Logger.Sugar().Info("is execute ", executed)
 				if err != nil {
@@ -125,24 +131,28 @@ func (e *Engine) GetSignatureCollectedEvent() {
 					if !executed {
 						_, err := e.Execute(voteMsg)
 						if err != nil {
+							fmt.Println()
 							log.Logger.Error(err.Error())
+							fmt.Println()
 							e.Log.Error("Execute err", "err", err)
+						} else {
+							e.Log.Info("Execute success ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+							fmt.Println()
+							log.Logger.Sugar().Info("Execute success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
+							fmt.Println()
 						}
-						log.Logger.Sugar().Info("Execute success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
-
-						_, err = e.Execute(voteMsg)
-						if err != nil {
-							log.Logger.Error(err.Error())
-							e.Log.Error("Execute err", "err", err)
-						}
-						log.Logger.Sugar().Info("Execute success2 messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
 					} else {
 						_, err := e.Confirm(voteMsg)
 						if err != nil {
+							fmt.Println()
 							log.Logger.Error(err.Error())
+							fmt.Println()
 							e.Log.Error("Confirm err", "err", err)
+						} else {
+							fmt.Println()
+							log.Logger.Sugar().Info("Confirm success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
+							fmt.Println()
 						}
-						log.Logger.Sugar().Info("Confirm success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
 					}
 					e.Log.Error("Execute or Confirm success")
 				}
@@ -193,7 +203,6 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 		if !ok {
 			return errors.New("data empty " + messageId.String()), VoteMsg{}
 		}
-
 		msg = append(msg, VoteMsg{
 			resourceId.([32]byte),
 			voteStatus,
@@ -213,7 +222,6 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 func (e *Engine) VoteStatus(messageId [32]byte) (uint8, error) {
 	voteRecord, err := e.ManagerContract.VoteRecords(nil, messageId)
 	if err != nil {
-		log.Logger.Error(err.Error())
 		return 0, err
 	}
 
@@ -223,7 +231,7 @@ func (e *Engine) VoteStatus(messageId [32]byte) (uint8, error) {
 func (e *Engine) IsExecuted(msg VoteMsg) (bool, error) {
 	watcher, err := NewWatcher(int(msg.TargetChainId))
 	if err != nil {
-		fmt.Println(err)
+		return false, err
 	}
 	return watcher.BridgeContract.ExecutionRecord(nil, msg.MessageId)
 }
@@ -231,7 +239,7 @@ func (e *Engine) IsExecuted(msg VoteMsg) (bool, error) {
 func (e *Engine) Execute(msg VoteMsg) (*types.Transaction, error) {
 	watcher, err := NewWatcher(int(msg.TargetChainId))
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
 	}
 
 	opts, err := e.NewTransactOpts(int(msg.TargetChainId))
@@ -253,9 +261,9 @@ func (e *Engine) Confirm(msg VoteMsg) (*types.Transaction, error) {
 	return transaction, err
 }
 
-func (e *Engine) NewTransactOpts(chainId int) (*bind.TransactOpts, error) {
+func (e *Engine) NewTransactOpts(Id int) (*bind.TransactOpts, error) {
 
-	auth, err := bind.NewKeyedTransactorWithChainID(relayer.ThisReLayer.PrivateKey, big.NewInt(config.Config.Chains[chainId].ChainId))
+	auth, err := bind.NewKeyedTransactorWithChainID(relayer.ThisReLayer.PrivateKey, big.NewInt(int64(config.ChainCfg[Id].ChainId)))
 	if err != nil {
 		return nil, err
 	}

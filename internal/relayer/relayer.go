@@ -22,7 +22,7 @@ type ReLayer struct {
 var ThisReLayer ReLayer
 
 func InitReLayer() {
-	auth, err := bind.NewKeyedTransactorWithChainID(ThisReLayer.PrivateKey, big.NewInt(config.EngineCfg.ChainId))
+	auth, err := bind.NewKeyedTransactorWithChainID(ThisReLayer.PrivateKey, big.NewInt(int64(config.EngineCfg.ChainId)))
 	if err != nil {
 		log.Panicln(err)
 	}
