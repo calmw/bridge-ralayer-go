@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bridge-relayer/log"
 	"bridge-relayer/utils"
 	"encoding/hex"
 	"fmt"
@@ -9,9 +10,10 @@ import (
 )
 
 func TestSetVoteThreshold(t *testing.T) {
-	_, err := ManagerContract.Contract.AdminSetVoteThreshold(DeployTransactOpts, uint32(len(ReLayer)))
+	fmt.Println(uint32(len(ReLayer)), 33)
+	_, err := ManagerContract.Contract.AdminSetVoteThreshold(ManagerContract.TransactOpts, uint32(len(ReLayer)))
 	if err != nil {
-		fmt.Println("err: ", err)
+		log.Logger.Error(err.Error())
 		return
 	}
 	fmt.Println("SetVoteThreshold success")
@@ -20,16 +22,15 @@ func TestSetVoteThreshold(t *testing.T) {
 func TestGrantRole(t *testing.T) {
 	ValidatorRoleBytes, err := hex.DecodeString(ValidatorRole)
 	if err != nil {
-		fmt.Println("err: ", err)
+		log.Logger.Error(err.Error())
 		return
 	}
 	for _, r := range ReLayer {
-		fmt.Println(r["address"], 66)
-		_, err = ManagerContract.Contract.GrantRole(DeployTransactOpts, utils.ByteSliceToByte32(ValidatorRoleBytes),
+		_, err = ManagerContract.Contract.GrantRole(ManagerContract.TransactOpts, utils.ByteSliceToByte32(ValidatorRoleBytes),
 			common.HexToAddress(r["address"]),
 		)
 		if err != nil {
-			fmt.Println("err: ", err)
+			log.Logger.Error(err.Error())
 			return
 		}
 	}
@@ -37,18 +38,38 @@ func TestGrantRole(t *testing.T) {
 	fmt.Println("GrantRole success")
 }
 
+func TestRevokeRole(t *testing.T) {
+	ValidatorRoleBytes, err := hex.DecodeString(ValidatorRole)
+	if err != nil {
+		log.Logger.Error(err.Error())
+		return
+	}
+	for _, r := range ReLayer {
+		_, err = ManagerContract.Contract.RevokeRole(ManagerContract.TransactOpts, utils.ByteSliceToByte32(ValidatorRoleBytes),
+			common.HexToAddress(r["address"]),
+		)
+		if err != nil {
+			log.Logger.Error(err.Error())
+			return
+		}
+	}
+
+	fmt.Println("RevokeRole success")
+}
+
 func TestSetConfigResource(t *testing.T) {
+	automaticCall := false
 	ResourceIdBytes, err := hex.DecodeString(ResourceId)
 	if err != nil {
-		fmt.Println("err: ", err)
+		log.Logger.Error(err.Error())
 		return
 	}
 
-	_, err = ManagerContract.Contract.AdminSetConfigResource(DeployTransactOpts, utils.ByteSliceToByte32(ResourceIdBytes),
-		true,
+	_, err = ManagerContract.Contract.AdminSetConfigResource(ManagerContract.TransactOpts, utils.ByteSliceToByte32(ResourceIdBytes),
+		automaticCall,
 	)
 	if err != nil {
-		fmt.Println("err: ", err)
+		log.Logger.Error(err.Error())
 		return
 	}
 
