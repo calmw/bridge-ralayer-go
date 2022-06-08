@@ -193,7 +193,7 @@ func (w *Watcher) getBridgeEventLogsFromBlock(sig event.Sig, latestBlock *big.In
 		return errors.New("no event Logs"), DataMsg{}
 	}
 
-	contractAbi, err := internal.GetContractAbi("bridge")
+	contractAbi, err := bridge.BridgeMetaData.GetAbi()
 	var eventData []interface{}
 	if err != nil {
 		log.Logger.Error(err.Error())

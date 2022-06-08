@@ -176,7 +176,7 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 		return errors.New("no event Logs"), VoteMsg{}
 	}
 
-	contractAbi, err := internal.GetContractAbi("manager")
+	contractAbi, err := manager.ManagerMetaData.GetAbi()
 	var eventData []interface{}
 	if err != nil {
 		log.Logger.Error(err.Error())
