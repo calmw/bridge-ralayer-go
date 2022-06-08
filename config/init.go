@@ -8,7 +8,7 @@ import (
 )
 
 func InitConfig(reLayerAddress string) {
-	currentAbPath := getCurrentAbsPathByCaller()
+	currentAbPath := GetCurrentAbsPathByCaller()
 	tomlFile, err := filepath.Abs(currentAbPath + "/config.toml")
 	if err != nil {
 		panic("read toml file err: " + err.Error())
@@ -23,7 +23,7 @@ func InitConfig(reLayerAddress string) {
 	ParseChainConfig(reLayerAddress)
 }
 
-func getCurrentAbsPathByCaller() string {
+func GetCurrentAbsPathByCaller() string {
 	var abPath string
 	_, filename, _, ok := runtime.Caller(0)
 	if ok {
