@@ -10,7 +10,7 @@ import (
 )
 
 const DefaultGasLimit = 6721975
-const DefaultBlockConfirmations = 1
+const DefaultBlockConfirmations = 2
 
 var Config *Conf
 

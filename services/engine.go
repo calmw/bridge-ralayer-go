@@ -276,7 +276,7 @@ func (e *Engine) NewTransactOpts(Id int) (*bind.TransactOpts, error) {
 		GasPrice:  nil,
 		GasFeeCap: nil,
 		GasTipCap: nil,
-		GasLimit:  0,
+		GasLimit:  config.DefaultGasLimit,
 		Context:   context.Background(),
 		NoSend:    false, // Do all transact steps but do not send the transaction
 	}
