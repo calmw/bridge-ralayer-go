@@ -3,7 +3,8 @@ package services
 import (
 	"bridge-relayer/binding/bridge"
 	"bridge-relayer/config"
-	"bridge-relayer/internal"
+	eventInternal "bridge-relayer/internal/event"
+	"bridge-relayer/internal/message"
 	"bridge-relayer/internal/relayer"
 	"bridge-relayer/log"
 	"bridge-relayer/services/event"
@@ -149,7 +150,7 @@ func (w *Watcher) PollBlocks() {
 			w.Log.Warn("get CallRequest logs", "err", err, "block", currentBlock.String())
 		} else {
 			w.Log.Info("get CallRequest logs success", "block", currentBlock.String(), "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
-			internal.MessageAll.Save(msg.MessageId, msg.Data)
+			message.AllMessage.Save(msg.MessageId, msg.Data)
 			err := w.Vote(msg, currentBlock)
 			if err != nil {
 				w.Log.Error("CallRequest Vote err", "err", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
@@ -181,7 +182,7 @@ func (w *Watcher) SetBlockStore(blockNumber *big.Int) {
 
 func (w *Watcher) getBridgeEventLogsFromBlock(sig event.Sig, latestBlock *big.Int) (error, DataMsg) {
 
-	query := internal.BuildQuery(w.Cfg.Bridge, sig, latestBlock, latestBlock)
+	query := eventInternal.BuildQuery(w.Cfg.Bridge, sig, latestBlock, latestBlock)
 
 	// querying for logs
 	logs, err := w.EthCli.FilterLogs(context.Background(), query)

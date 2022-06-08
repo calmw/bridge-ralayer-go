@@ -7,6 +7,8 @@ type Message struct {
 	MessageId map[[32]byte][]byte
 }
 
+var AllMessage *Message
+
 func (m *Message) Save(msgId [32]byte, data []byte) {
 	m.Lock()
 	defer m.Unlock()

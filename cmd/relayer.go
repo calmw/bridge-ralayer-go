@@ -6,7 +6,6 @@ import (
 	"bridge-relayer/internal/relayer"
 	"bridge-relayer/services"
 	"errors"
-	"fmt"
 	log "github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -53,24 +52,21 @@ func main() {
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "privateKey",
-					Value:    "dd",
 					Usage:    "reLayer private key",
 					Required: true,
 				},
 				&cli.StringFlag{
 					Name:     "address",
-					Value:    "fff",
 					Usage:    "reLayer address",
 					Required: true,
 				},
 			},
 		},
 		{
-			Name:    "deploy",
-			Aliases: []string{"d"},
-			Usage:   "deploy contract",
+			Name:  "deploy",
+			Usage: "deploy contract",
 			Action: func(c *cli.Context) error {
-				fmt.Println("deploy contract: ", c.Args().First())
+
 				return nil
 			},
 			Flags: []cli.Flag{

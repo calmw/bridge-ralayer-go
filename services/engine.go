@@ -3,7 +3,8 @@ package services
 import (
 	"bridge-relayer/binding/manager"
 	"bridge-relayer/config"
-	"bridge-relayer/internal"
+	eventInternal "bridge-relayer/internal/event"
+	"bridge-relayer/internal/message"
 	"bridge-relayer/internal/relayer"
 	"bridge-relayer/log"
 	"bridge-relayer/services/event"
@@ -166,7 +167,7 @@ func (e *Engine) GetSignatureCollectedEvent() {
 }
 
 func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address, sig event.Sig, latestBlock *big.Int) (error, VoteMsg) {
-	query := internal.BuildQuery(address, sig, latestBlock, latestBlock)
+	query := eventInternal.BuildQuery(address, sig, latestBlock, latestBlock)
 
 	// querying for logs
 	logs, err := e.EthCli.FilterLogs(context.Background(), query)
@@ -201,7 +202,7 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 		target := eventData[5].(common.Address)
 		signatures := eventData[6].([][]byte)
 		dataHash := logE.Topics[2]
-		ok, data := internal.MessageAll.Get(messageId)
+		ok, data := message.AllMessage.Get(messageId)
 		if !ok {
 			return errors.New("data empty " + messageId.String()), VoteMsg{}
 		}
