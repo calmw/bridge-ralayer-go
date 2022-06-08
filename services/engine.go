@@ -118,7 +118,9 @@ func (e *Engine) GetSignatureCollectedEvent() {
 			if chainConfig.RemoteCallType == 0 {
 				e.Log.Error("remote callType", "remote callType", "Manual", "messageId",
 					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+				fmt.Println()
 				log.Logger.Sugar().Info("remote callType Manual, exit", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+				fmt.Println()
 			} else {
 				e.Log.Error("remote callType", "remote callType", "auto", "messageId",
 					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
