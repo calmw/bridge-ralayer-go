@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -30,6 +29,8 @@ const VotePassed = 2
 const VoteCancelled = 3
 
 var BlockRetryInterval = time.Second * 2
+
+var NoEventErr = errors.New("no event logs")
 
 type DataMsg struct {
 	ResourceID    [32]byte
@@ -64,13 +65,18 @@ type Watcher struct {
 }
 
 func NewWatcher(id int) (*Watcher, error) {
-	ethCli, err := ethclient.Dial(config.ChainCfg[id].Endpoint)
+	ok, chain := CheckChainId(id)
+	if !ok {
+		return nil, errors.New("chain id error")
+	}
+
+	ethCli, err := ethclient.Dial(chain.Endpoint)
 	if nil != err {
 		log.Logger.Sugar().Error(err.Error(), id)
 		return nil, err
 	}
 
-	bridgeContract, err := bridge.NewBridge(config.ChainCfg[id].Bridge, ethCli)
+	bridgeContract, err := bridge.NewBridge(chain.Bridge, ethCli)
 	if nil != err {
 		log.Logger.Error(err.Error())
 		return nil, err
@@ -80,9 +86,16 @@ func NewWatcher(id int) (*Watcher, error) {
 		Id:             id,
 		Cfg:            config.ChainCfg[id],
 		EthCli:         ethCli,
-		Log:            log15.Root().New("chain", config.ChainCfg[id].Name),
+		Log:            log15.Root().New("chain", chain.Name),
 		BridgeContract: bridgeContract,
 	}, nil
+}
+
+func CheckChainId(id int) (bool, config.Chain) {
+	var chain config.Chain
+	var ok bool
+	chain, ok = config.ChainCfg[id]
+	return ok, chain
 }
 
 func StartWatcher() {
@@ -94,7 +107,7 @@ func StartWatcher() {
 			log.Logger.Sugar().Error("NewWatcher failed ", err)
 			panic("NewWatcher failed")
 		}
-		watcher.Log.Info("Starting listener... ")
+		watcher.Log.Info("Starting watcher ... ")
 		go func() {
 			watcher.PollBlocks()
 			wg.Done()
@@ -110,7 +123,7 @@ func (w *Watcher) PollBlocks() {
 
 		latestBlock, err := w.GetBlockNum()
 		if err != nil {
-			w.Log.Error("GetBlockNum ", "err", err)
+			w.Log.Error("GetBlockNum error", "error", err)
 			continue
 		}
 		// Sleep if the difference is less than BlockDelay; (latest - current) < BlockDelay
@@ -120,17 +133,18 @@ func (w *Watcher) PollBlocks() {
 			continue
 		}
 
-		w.Log.Info("Polling Blocks...", "block", currentBlock.String(), "latest", latestBlock)
-
 		// Parse out ConfirmedRequest events
 		err, msg := w.getBridgeEventLogsFromBlock(event.ConfirmedRequestEvent.EventSignature, currentBlock)
 		if err != nil {
-			w.Log.Warn("get ConfirmedRequest logs", "err", err, "block", currentBlock.String())
+			if errors.Is(err, NoEventErr) {
+				w.Log.Crit("No ConfirmedRequest Event ")
+			} else {
+				w.Log.Error("Get ConfirmedRequest Event error", "error", err)
+			}
 		} else {
-			w.Log.Warn("get ConfirmedRequest success ", "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
-			fmt.Println()
+			w.Log.Info("get ConfirmedRequest success ", "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
 			log.Logger.Sugar().Info("get ConfirmedRequest success ", "msg", msg, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
-			fmt.Println()
+
 			//返回消息交给业务层，暂不处理
 			//internal.MessageAll.Save(msg.MessageId, msg.Data)
 			//err := w.Vote(msg, currentBlock)
@@ -147,22 +161,22 @@ func (w *Watcher) PollBlocks() {
 		// Parse out CallRequest events
 		err, msg = w.getBridgeEventLogsFromBlock(event.CallRequestEvent.EventSignature, currentBlock)
 		if err != nil {
-			w.Log.Warn("get CallRequest logs", "err", err, "block", currentBlock.String())
+			if errors.Is(err, NoEventErr) {
+				w.Log.Crit("No CallRequest Event ")
+			} else {
+				w.Log.Error("Get CallRequest Event error", "error", err)
+			}
 		} else {
 			w.Log.Info("get CallRequest logs success", "block", currentBlock.String(), "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
-			message.AllMessage.Save(msg.MessageId, msg.Data)
+			message.AllMessage.Save(msg.MessageId, msg.Data, false)
 			err := w.Vote(msg, currentBlock)
 			if err != nil {
-				w.Log.Error("CallRequest Vote err", "err", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
-				fmt.Println()
-				log.Logger.Sugar().Error("CallRequest Vote err ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+				w.Log.Error("CallRequest Vote error", "error", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+				log.Logger.Sugar().Error("CallRequest Vote error ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
 					" reLayerAddress=", relayer.ThisReLayer.Address.String())
-				fmt.Println()
 			} else {
-				fmt.Println()
 				log.Logger.Sugar().Info("CallRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
 					" reLayerAddress=", relayer.ThisReLayer.Address.String())
-				fmt.Println()
 			}
 		}
 
@@ -176,7 +190,7 @@ func (w *Watcher) PollBlocks() {
 func (w *Watcher) SetBlockStore(blockNumber *big.Int) {
 	err := relayer.ThisReLayer.SetBlockStore(w.Cfg.Name, blockNumber)
 	if err != nil {
-		w.Log.Error("SetBlockStore", "err", err, "block", blockNumber.String())
+		w.Log.Error("SetBlockStore", "error", err, "block", blockNumber.String())
 	}
 }
 
@@ -187,11 +201,11 @@ func (w *Watcher) getBridgeEventLogsFromBlock(sig event.Sig, latestBlock *big.In
 	// querying for logs
 	logs, err := w.EthCli.FilterLogs(context.Background(), query)
 	if err != nil {
-		return errors.New("unable to Filter Logs"), DataMsg{}
+		return NoEventErr, DataMsg{}
 	}
 
 	if len(logs) <= 0 {
-		return errors.New("no event Logs"), DataMsg{}
+		return NoEventErr, DataMsg{}
 	}
 
 	contractAbi, err := bridge.BridgeMetaData.GetAbi()
@@ -203,7 +217,7 @@ func (w *Watcher) getBridgeEventLogsFromBlock(sig event.Sig, latestBlock *big.In
 
 	var msg []DataMsg
 
-	// read through the log events and handle their deposit event if handler is recognized
+	// read through the log events and handle their callRequest or confirmedRequest event if handler is recognized
 	for _, logE := range logs {
 		if sig == event.CallRequestEvent.EventSignature {
 			eventData, err = contractAbi.Unpack(event.CallRequestEvent.EventName, logE.Data)
@@ -222,7 +236,14 @@ func (w *Watcher) getBridgeEventLogsFromBlock(sig event.Sig, latestBlock *big.In
 		sourceNonce := eventData[3]
 		data := eventData[4]
 		dataHash := crypto.Keccak256Hash(data.([]byte))
-
+		ok, _ := CheckChainId(int(targetChainId))
+		if !ok {
+			return errors.New("event error: target chainId id error"), DataMsg{}
+		}
+		ok, _ = CheckChainId(int(sourceChainId.(uint32)))
+		if !ok {
+			return errors.New("event error: source chainId id error"), DataMsg{}
+		}
 		msg = append(msg, DataMsg{
 			resourceId.([32]byte),
 			logE.Topics[1],
@@ -281,11 +302,11 @@ func (w *Watcher) Vote(msg DataMsg, currentBlock *big.Int) error {
 
 	voteStatus, err := w.VoteStatus(msg.MessageId)
 	if err != nil {
-		w.Log.Error("voteStatus err", "err", err)
+		w.Log.Error("Get voteStatus error", "error", err)
 		log.Logger.Error(err.Error())
 		return err
 	}
-	w.Log.Info("voteStatus ", "voteStatus", voteStatus)
+	w.Log.Info("voteStatus", "voteStatus", voteStatus)
 	if voteStatus < VotePassed {
 		if hasVote {
 			return errors.New("already voted")
@@ -293,21 +314,21 @@ func (w *Watcher) Vote(msg DataMsg, currentBlock *big.Int) error {
 
 		engine, err := NewEngine()
 		if err != nil {
-			w.Log.Error("NewEngine err ", "err", err)
+			w.Log.Error("NewEngine error", "error", err)
 			return err
 		}
 
 		MessageId := utils.Byte32ToByteSlice(msg.MessageId)
 		signature, err := utils.Sign(MessageId, relayer.ThisReLayer.PrivateKey)
 		if err != nil {
-			w.Log.Error("Sign ", "Sign err", err)
+			w.Log.Error("Sign ", "Sign error", err)
 			return err
 		}
 
 		_, err = engine.Vote(relayer.ThisReLayer.TransactOpts, msg.ResourceID, msg.MessageId, msg.SourceChainId, msg.SourceNonce, msg.TargetChainId,
 			msg.Target, msg.DataHash, signature)
 		if err != nil {
-			w.Log.Error("Vote ", "Vote err", err)
+			w.Log.Error("Vote ", "Vote error", err)
 			return err
 		} else {
 			w.Log.Info("Vote success", "messageId", hex.EncodeToString(MessageId))

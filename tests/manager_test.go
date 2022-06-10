@@ -58,7 +58,7 @@ func TestRevokeRole(t *testing.T) {
 }
 
 func TestSetConfigResource(t *testing.T) {
-	automaticCall := false
+	automaticCall := true
 	ResourceIdBytes, err := hex.DecodeString(ResourceId)
 	if err != nil {
 		log.Logger.Error(err.Error())

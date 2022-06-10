@@ -37,7 +37,7 @@ func main() {
 				config.InitConfig(c.String("address"))
 				relayer.InitReLayer()
 
-				log.Info("Starting reLayer...")
+				log.Info("Starting reLayer ...")
 
 				go services.StartWatcher()
 

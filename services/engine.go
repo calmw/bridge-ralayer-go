@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,17 +25,7 @@ type Engine struct {
 	Cfg             config.Engine
 	EthCli          *ethclient.Client
 	Log             log15.Logger
-	ManagerContract *manager.Manager // instance of bound bridge contract
-}
-
-type VoteRecord struct {
-	ResourceID    [32]byte
-	VoteStatus    uint8
-	StartBlock    *big.Int
-	SourceChainId uint32
-	SourceNonce   *big.Int
-	TargetChainId uint32
-	DataHash      [32]byte
+	ManagerContract *manager.Manager // instance of bound manager contract
 }
 
 func NewEngine() (*Engine, error) {
@@ -68,10 +57,6 @@ func (e *Engine) Vote(transactOpts *bind.TransactOpts, _resourceID [32]byte, mes
 		sourceNonce, targetChainId, target, dataHash, signature)
 }
 
-func (e *Engine) GetVoteRecords(messageId [32]byte) (VoteRecord, error) {
-	return e.ManagerContract.VoteRecords(nil, messageId)
-}
-
 func (e *Engine) GetBlockNum() (*big.Int, error) {
 	header, err := e.EthCli.HeaderByNumber(context.Background(), nil)
 	if err != nil {
@@ -90,74 +75,68 @@ func (e *Engine) GetSignatureCollectedEvent() {
 			e.Log.Error("GetBlockNum ", "err", err)
 			continue
 		}
-		e.Log.Debug("GetSignatureCollectedEvent", "block", currentBlock, "latestBlock", latestBlock)
 
 		// Sleep if the difference is less than BlockDelay; (latest - current) < BlockDelay
 		blockDelay := big.NewInt(config.DefaultBlockConfirmations)
 		if big.NewInt(0).Sub(latestBlock, currentBlock).Cmp(blockDelay) == -1 {
-			e.Log.Debug("engine not ready, will retry", "target", currentBlock, "latest", latestBlock)
+			e.Log.Debug("Block not ready, will retry", "target", currentBlock, "latest", latestBlock)
 			continue
 		}
 
 		err, voteMsg := e.GetSignatureCollectedEventLogsFromBlock(e.Cfg.ManagerAddress, event.SignatureCollectedEvent.EventSignature, currentBlock)
 		if err != nil {
-			e.Log.Error("GetSignatureCollectedEvent err", "err", err, "block", currentBlock)
+			if errors.Is(err, NoEventErr) {
+				e.Log.Crit("No SignatureCollected Event ")
+			} else {
+				e.Log.Error("Get SignatureCollected Event error", "error", err)
+			}
 		} else {
-			e.Log.Info("GetSignatureCollectedEvent, success", "messageId",
+			e.Log.Info("Get SignatureCollected Event Success", "messageId",
 				hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), "block", currentBlock)
-			fmt.Println()
+
 			log.Logger.Sugar().Info("GetSignatureCollectedEvent, success", "voteMsg", voteMsg)
-			fmt.Println()
+
 			chainConfig, err := e.ManagerContract.GetChainConfig(&bind.CallOpts{
 				From:    relayer.ThisReLayer.Address,
 				Context: context.Background(),
 			}, voteMsg.ResourceID)
 			if err != nil {
-				e.Log.Error("GetChainConfig err", "err", err)
+				e.Log.Error("GetChainConfig error", "error", err)
 				return
 			}
 			if chainConfig.RemoteCallType == 0 {
-				e.Log.Error("remote callType", "remote callType", "Manual", "messageId",
-					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
-				fmt.Println()
-				log.Logger.Sugar().Info("remote callType Manual, exit", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
-				fmt.Println()
+				e.Log.Trace("remote call", "remote call", "Manual", "messageId",
+					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), "status", "end of process")
+				log.Logger.Sugar().Info("remote call Manual, end of process", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
 			} else {
-				e.Log.Error("remote callType", "remote callType", "auto", "messageId",
+				e.Log.Trace("remote call", "remote call", "auto", "messageId",
 					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
-				executed, err := e.IsExecuted(voteMsg)
-				log.Logger.Sugar().Info("is execute ", executed)
+				isExecuted, err := e.IsExecuted(voteMsg)
+				log.Logger.Sugar().Info("is execute ", isExecuted)
 				if err != nil {
 					log.Logger.Error(err.Error())
-					e.Log.Error("IsExecuted err", "err", err)
+					e.Log.Error("IsExecuted error", "error", err)
 				} else {
-					if !executed {
+					if !isExecuted {
 						_, err := e.Execute(voteMsg)
 						if err != nil {
-							fmt.Println()
 							log.Logger.Error(err.Error())
-							fmt.Println()
 							e.Log.Error("Execute err", "err", err)
 						} else {
 							e.Log.Info("Execute success ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
-							fmt.Println()
 							log.Logger.Sugar().Info("Execute success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
-							fmt.Println()
+							message.AllMessage.Save(voteMsg.MessageId, voteMsg.Data, true)
 						}
 					} else {
 						_, err := e.Confirm(voteMsg)
 						if err != nil {
-							fmt.Println()
 							log.Logger.Error(err.Error())
-							fmt.Println()
 							e.Log.Error("Confirm err", "err", err)
 						} else {
-							fmt.Println()
 							log.Logger.Sugar().Info("Confirm success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
-							fmt.Println()
+							message.AllMessage.Save(voteMsg.MessageId, voteMsg.Data, true)
 						}
 					}
-					e.Log.Error("Execute or Confirm success")
 				}
 			}
 		}
@@ -166,8 +145,9 @@ func (e *Engine) GetSignatureCollectedEvent() {
 	}
 }
 
-func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address, sig event.Sig, latestBlock *big.Int) (error, VoteMsg) {
-	query := eventInternal.BuildQuery(address, sig, latestBlock, latestBlock)
+func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address, sig event.Sig, block *big.Int) (error, VoteMsg) {
+
+	query := eventInternal.BuildQuery(address, sig, block, block)
 
 	// querying for logs
 	logs, err := e.EthCli.FilterLogs(context.Background(), query)
@@ -176,7 +156,7 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 	}
 
 	if len(logs) <= 0 {
-		return errors.New("no event Logs"), VoteMsg{}
+		return NoEventErr, VoteMsg{}
 	}
 
 	contractAbi, err := manager.ManagerMetaData.GetAbi()
@@ -188,7 +168,7 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 
 	var msg []VoteMsg
 
-	// read through the log events and handle their deposit event if handler is recognized
+	// read through the log events and handle their SignatureCollected event if handler is recognized
 	for _, logE := range logs {
 		eventData, _ = contractAbi.Unpack(event.SignatureCollectedEvent.EventName, logE.Data)
 
@@ -202,9 +182,19 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 		target := eventData[5].(common.Address)
 		signatures := eventData[6].([][]byte)
 		dataHash := logE.Topics[2]
-		ok, data := message.AllMessage.Get(messageId)
+
+		ok, _ := CheckChainId(int(targetChainId))
 		if !ok {
-			return errors.New("data empty " + messageId.String()), VoteMsg{}
+			return errors.New("event error: target chainId id error"), VoteMsg{}
+		}
+		ok, _ = CheckChainId(int(sourceChainId))
+		if !ok {
+			return errors.New("event error: source chainId id error"), VoteMsg{}
+		}
+
+		ok, MsgInfo := message.AllMessage.Get(messageId)
+		if !ok {
+			return errors.New("log data empty " + messageId.String()), VoteMsg{}
 		}
 		msg = append(msg, VoteMsg{
 			resourceId.([32]byte),
@@ -215,7 +205,7 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 			target,
 			messageId,
 			dataHash,
-			data,
+			MsgInfo.Data,
 			signatures,
 		})
 	}
