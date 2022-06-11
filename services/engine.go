@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
+	"math/rand"
 	"time"
 )
 
@@ -66,82 +67,67 @@ func (e *Engine) GetBlockNum() (*big.Int, error) {
 	return header.Number, nil
 }
 
-func (e *Engine) GetSignatureCollectedEvent() {
+func (e *Engine) IsAutoCallExecute(voteMsg VoteMsg) (bool, error) {
+	chainConfig, err := e.ManagerContract.GetChainConfig(&bind.CallOpts{
+		From:    relayer.ThisReLayer.Address,
+		Context: context.Background(),
+	}, voteMsg.ResourceID)
+	if err != nil {
+		e.Log.Error("GetChainConfig error", "error", err)
+		log.Logger.Error(err.Error())
+		return false, err
+	}
+	if chainConfig.RemoteCallType == 0 {
+		e.Log.Trace("remote call", "remote call", "Manual", "messageId",
+			hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), "status", "end of process")
+		log.Logger.Sugar().Info("remote call Manual, end of process", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+		return false, nil
+	}
+	return true, nil
+}
+
+func (e *Engine) PollBlocks() {
 	var currentBlock = e.Cfg.StartBlock
 	for true {
 		time.Sleep(BlockRetryInterval)
+
+		// Get the latest block
 		latestBlock, err := e.GetBlockNum()
 		if err != nil {
 			e.Log.Error("GetBlockNum ", "err", err)
 			continue
 		}
 
-		// Sleep if the difference is less than BlockDelay; (latest - current) < BlockDelay
+		// BlockDelay; (latest - current) < BlockDelay
 		blockDelay := big.NewInt(config.DefaultBlockConfirmations)
 		if big.NewInt(0).Sub(latestBlock, currentBlock).Cmp(blockDelay) == -1 {
 			e.Log.Debug("Block not ready, will retry", "target", currentBlock, "latest", latestBlock)
 			continue
 		}
 
+		// Next block
+		currentBlock.Add(currentBlock, big.NewInt(1))
+
+		// Get event data
 		err, voteMsg := e.GetSignatureCollectedEventLogsFromBlock(e.Cfg.ManagerAddress, event.SignatureCollectedEvent.EventSignature, currentBlock)
 		if err != nil {
 			if errors.Is(err, NoEventErr) {
-				e.Log.Crit("No SignatureCollected Event ")
+				e.Log.Crit("No SignatureCollected Event", "block", currentBlock)
 			} else {
 				e.Log.Error("Get SignatureCollected Event error", "error", err)
+				e.Log.Error(err.Error())
 			}
-		} else {
-			e.Log.Info("Get SignatureCollected Event Success", "messageId",
-				hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), "block", currentBlock)
-
-			log.Logger.Sugar().Info("GetSignatureCollectedEvent, success", "voteMsg", voteMsg)
-
-			chainConfig, err := e.ManagerContract.GetChainConfig(&bind.CallOpts{
-				From:    relayer.ThisReLayer.Address,
-				Context: context.Background(),
-			}, voteMsg.ResourceID)
-			if err != nil {
-				e.Log.Error("GetChainConfig error", "error", err)
-				return
-			}
-			if chainConfig.RemoteCallType == 0 {
-				e.Log.Trace("remote call", "remote call", "Manual", "messageId",
-					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), "status", "end of process")
-				log.Logger.Sugar().Info("remote call Manual, end of process", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
-			} else {
-				e.Log.Trace("remote call", "remote call", "auto", "messageId",
-					hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
-				isExecuted, err := e.IsExecuted(voteMsg)
-				log.Logger.Sugar().Info("is execute ", isExecuted)
-				if err != nil {
-					log.Logger.Error(err.Error())
-					e.Log.Error("IsExecuted error", "error", err)
-				} else {
-					if !isExecuted {
-						_, err := e.Execute(voteMsg)
-						if err != nil {
-							log.Logger.Error(err.Error())
-							e.Log.Error("Execute err", "err", err)
-						} else {
-							e.Log.Info("Execute success ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
-							log.Logger.Sugar().Info("Execute success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
-							message.AllMessage.Save(voteMsg.MessageId, voteMsg.Data, true)
-						}
-					} else {
-						_, err := e.Confirm(voteMsg)
-						if err != nil {
-							log.Logger.Error(err.Error())
-							e.Log.Error("Confirm err", "err", err)
-						} else {
-							log.Logger.Sugar().Info("Confirm success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
-							message.AllMessage.Save(voteMsg.MessageId, voteMsg.Data, true)
-						}
-					}
-				}
-			}
+			continue
 		}
 
-		currentBlock.Add(currentBlock, big.NewInt(1))
+		// Check whether the resource ID is called automatically
+		isAutoCallExecute, err := e.IsAutoCallExecute(voteMsg)
+		if err != nil || !isAutoCallExecute {
+			continue
+		}
+
+		// Call Bridge
+		go e.CallBridge(voteMsg)
 	}
 }
 
@@ -168,7 +154,7 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 
 	var msg []VoteMsg
 
-	// read through the log events and handle their SignatureCollected event if handler is recognized
+	// Read through the log events and handle their SignatureCollected event if handler is recognized
 	for _, logE := range logs {
 		eventData, _ = contractAbi.Unpack(event.SignatureCollectedEvent.EventName, logE.Data)
 
@@ -209,6 +195,11 @@ func (e *Engine) GetSignatureCollectedEventLogsFromBlock(address common.Address,
 			signatures,
 		})
 	}
+
+	e.Log.Info("Get SignatureCollected Event Success", "messageId",
+		hex.EncodeToString(utils.Byte32ToByteSlice(msg[0].MessageId)), "block", block)
+	log.Logger.Sugar().Info("GetSignatureCollectedEvent, success ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(msg[0].MessageId)))
+
 	return nil, msg[0]
 }
 
@@ -243,6 +234,51 @@ func (e *Engine) Execute(msg VoteMsg) (*types.Transaction, error) {
 		opts, msg.ResourceID, msg.SourceChainId, msg.SourceNonce,
 		msg.MessageId, msg.TargetChainId, msg.Target, msg.Data, msg.Signatures)
 	return transaction, err
+}
+
+func (e *Engine) CallBridge(voteMsg VoteMsg) {
+	e.Log.Trace("remote call", "remote call", "auto", "messageId",
+		hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+
+	rand.Seed(time.Now().UnixNano())
+	time.Sleep(ExecuteRandTime)
+
+	isExecuted, err := e.IsExecuted(voteMsg)
+	log.Logger.Sugar().Info("is execute ", isExecuted)
+	if err != nil {
+		e.Log.Error("IsExecuted error", "error", err)
+		log.Logger.Error(err.Error())
+		return
+	}
+
+	if !isExecuted {
+		tx, err := e.Execute(voteMsg)
+		if err != nil {
+			log.Logger.Error(err.Error())
+			e.Log.Error("Execute err", "err", err)
+		} else {
+			e.Log.Info("Execute success ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+			log.Logger.Sugar().Info("Execute success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)),
+				" reLayerAddress=", relayer.ThisReLayer.Address.String(),
+				" txHash=", tx.Hash(),
+			)
+			message.AllMessage.Save(voteMsg.MessageId, voteMsg.Data, true)
+		}
+	} else {
+		e.Log.Info("Already Executed,end process ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)))
+		log.Logger.Sugar().Info("Already Executed,end process messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)),
+			" reLayerAddress=", relayer.ThisReLayer.Address.String(),
+		)
+		// 确认操作放至业务层，暂不处理
+		//_, err := e.Confirm(voteMsg)
+		//if err != nil {
+		//	log.Logger.Error(err.Error())
+		//	e.Log.Error("Confirm err", "err", err)
+		//} else {
+		//	log.Logger.Sugar().Info("Confirm success messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(voteMsg.MessageId)), " reLayerAddress=", relayer.ThisReLayer.Address.String())
+		//	message.AllMessage.Save(voteMsg.MessageId, voteMsg.Data, true)
+		//}
+	}
 }
 
 func (e *Engine) Confirm(msg VoteMsg) (*types.Transaction, error) {

@@ -25,13 +25,31 @@ func TestGrantRole(t *testing.T) {
 		log.Logger.Error(err.Error())
 		return
 	}
+	// manager grantRole
 	for _, r := range ReLayer {
-		_, err = ManagerContract.Contract.GrantRole(ManagerContract.TransactOpts, utils.ByteSliceToByte32(ValidatorRoleBytes),
+		_, err = ManagerContract.Contract.GrantRole(
+			ManagerContract.TransactOpts,
+			utils.ByteSliceToByte32(ValidatorRoleBytes),
 			common.HexToAddress(r["address"]),
 		)
 		if err != nil {
 			log.Logger.Error(err.Error())
 			return
+		}
+	}
+
+	// bridge grantRole
+	for _, b := range BridgeContracts {
+		for _, r := range ReLayer {
+			_, err = b.Contract.GrantRole(
+				b.TransactOpts,
+				utils.ByteSliceToByte32(ValidatorRoleBytes),
+				common.HexToAddress(r["address"]),
+			)
+			if err != nil {
+				log.Logger.Error(err.Error())
+				return
+			}
 		}
 	}
 

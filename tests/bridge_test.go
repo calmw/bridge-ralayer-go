@@ -97,7 +97,7 @@ func TestCallRemote(t *testing.T) {
 	}
 	data, _ := hex.DecodeString("3565375400000000000000000000000000000000000000000000000000000000")
 
-	rand.Seed(int64(time.Now().UnixNano()))
+	rand.Seed(time.Now().UnixNano())
 	bridgeContractsIndex := rand.Intn(len(BridgeContracts))
 	var targetBridgeContractsIndex int
 	if bridgeContractsIndex-1 < 0 {

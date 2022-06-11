@@ -2,15 +2,21 @@ package config
 
 import (
 	"bridge-relayer/keyStore"
+	"bridge-relayer/log"
 	"bridge-relayer/utils"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
-	"log"
 	"math/big"
 	"os"
 )
 
 const DefaultGasLimit = 6721975
 const DefaultBlockConfirmations = 2
+
+var ChainType = map[string]bool{
+	"ethereum": true,
+	"tron":     true,
+}
 
 var Config *Conf
 
@@ -42,6 +48,7 @@ type ChainsConfig struct {
 	Name       string   `toml:"chain_name"`
 	Id         int      `toml:"id"`
 	ChainId    int      `toml:"chain_id"`
+	ChainType  string   `toml:"chain_type"`
 	VoteChain  bool     `toml:"vote_chain"`
 	Endpoint   string   `toml:"endpoint"`
 	Bridge     string   `toml:"bridge_address"`
@@ -53,6 +60,7 @@ type Chain struct {
 	Name       string
 	Id         int
 	ChainId    int
+	ChainType  string
 	VoteChain  bool
 	Endpoint   string
 	Bridge     common.Address
@@ -65,15 +73,24 @@ func ParseChainConfig(reLayerAddress string) {
 		if Config.Chains[i].StartBlock.Int64() == 0 {
 			err, block := GetBlockStore(Config.Chains[i].Name, reLayerAddress)
 			if err != nil {
-				log.Panicln(err)
+				log.Logger.Error(err.Error())
+				panic(err)
 			}
 			Config.Chains[i].StartBlock = block
+		}
+
+		_, ok := ChainType[Config.Chains[i].ChainType]
+		if !ok {
+			err := fmt.Sprintf("chain_type err,id=%d", Config.Chains[i].ChainId)
+			log.Logger.Error(err)
+			panic(err)
 		}
 
 		ChainCfg[Config.Chains[i].Id] = Chain{
 			Config.Chains[i].Name,
 			Config.Chains[i].Id,
 			Config.Chains[i].ChainId,
+			Config.Chains[i].ChainType,
 			Config.Chains[i].VoteChain,
 			Config.Chains[i].Endpoint,
 			common.HexToAddress(Config.Chains[i].Bridge),
@@ -101,24 +118,41 @@ func CreateKeyStoreIfNotExists(chainName, reLayerAddress string) {
 	ksFile := keyStore.GetCurrentAbsPathByCaller() + "/" + chainName + "-" + reLayerAddress
 	exists, err := utils.FileExists(ksFile)
 	if err != nil {
-		log.Panicln(err)
+		log.Logger.Error(err.Error())
+		panic(err)
 	}
 	if !exists {
 		f, err := os.Create(ksFile)
 		defer f.Close()
 		if err != nil {
-			log.Panicln(err)
+			log.Logger.Error(err.Error())
+			panic(err)
 		}
 	}
 }
 
 func GetBlockStore(chainName, reLayerAddress string) (error, *big.Int) {
 	ksFile := keyStore.GetCurrentAbsPathByCaller() + "/" + chainName + "-" + reLayerAddress
-
+	exists, err := utils.FileExists(ksFile)
+	if err != nil {
+		return err, nil
+	}
+	if !exists {
+		_, err := os.Create(ksFile)
+		if err != nil {
+			log.Logger.Error(err.Error())
+			return err, nil
+		}
+		return nil, big.NewInt(0)
+	}
 	ks, err := os.ReadFile(ksFile)
 	if err != nil {
-		return err, big.NewInt(0)
+		log.Logger.Error(err.Error())
+		return err, nil
 	}
-	return nil, big.NewInt(utils.StringToInt64(string(ks)))
-
+	if len(ks) == 0 {
+		return nil, big.NewInt(0)
+	} else {
+		return nil, big.NewInt(utils.StringToInt64(string(ks)))
+	}
 }

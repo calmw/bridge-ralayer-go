@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -27,6 +28,10 @@ const VoteInactive = 0
 const VoteActive = 1
 const VotePassed = 2
 const VoteCancelled = 3
+const ChainNameLength = 10
+
+var VoteRandTime = time.Duration((1 + rand.Intn(30)) * 1000000000)
+var ExecuteRandTime = time.Duration((1 + rand.Intn(60)) * 1000000000)
 
 var BlockRetryInterval = time.Second * 2
 
@@ -137,16 +142,16 @@ func (w *Watcher) PollBlocks() {
 		err, msg := w.getBridgeEventLogsFromBlock(event.ConfirmedRequestEvent.EventSignature, currentBlock)
 		if err != nil {
 			if errors.Is(err, NoEventErr) {
-				w.Log.Crit("No ConfirmedRequest Event ")
+				w.Log.Crit("No ConfirmedRequest Event", "block", currentBlock)
 			} else {
 				w.Log.Error("Get ConfirmedRequest Event error", "error", err)
 			}
 		} else {
 			w.Log.Info("get ConfirmedRequest success ", "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
-			log.Logger.Sugar().Info("get ConfirmedRequest success ", "msg", msg, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
+			log.Logger.Sugar().Info("get ConfirmedRequest success ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
 
-			//返回消息交给业务层，暂不处理
-			//internal.MessageAll.Save(msg.MessageId, msg.Data)
+			// 确认操作放至业务层，暂不处理
+			//message.AllMessage.Save(msg.MessageId, msg.Data, false)
 			//err := w.Vote(msg, currentBlock)
 			//if err != nil {
 			//	w.Log.Error("ConfirmedRequest Vote err", "err", err, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
@@ -162,22 +167,24 @@ func (w *Watcher) PollBlocks() {
 		err, msg = w.getBridgeEventLogsFromBlock(event.CallRequestEvent.EventSignature, currentBlock)
 		if err != nil {
 			if errors.Is(err, NoEventErr) {
-				w.Log.Crit("No CallRequest Event ")
+				w.Log.Crit("No CallRequest Event", "block", currentBlock)
 			} else {
 				w.Log.Error("Get CallRequest Event error", "error", err)
 			}
 		} else {
 			w.Log.Info("get CallRequest logs success", "block", currentBlock.String(), "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
 			message.AllMessage.Save(msg.MessageId, msg.Data, false)
-			err := w.Vote(msg, currentBlock)
-			if err != nil {
-				w.Log.Error("CallRequest Vote error", "error", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
-				log.Logger.Sugar().Error("CallRequest Vote error ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
-					" reLayerAddress=", relayer.ThisReLayer.Address.String())
-			} else {
-				log.Logger.Sugar().Info("CallRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
-					" reLayerAddress=", relayer.ThisReLayer.Address.String())
-			}
+			go func() {
+				err := w.Vote(msg, currentBlock)
+				if err != nil {
+					w.Log.Error("CallRequest Vote error", "error", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+					log.Logger.Sugar().Error("CallRequest Vote error ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+						" reLayerAddress=", relayer.ThisReLayer.Address.String())
+				} else {
+					log.Logger.Sugar().Info("CallRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+						" reLayerAddress=", relayer.ThisReLayer.Address.String())
+				}
+			}()
 		}
 
 		w.SetBlockStore(currentBlock)
@@ -295,6 +302,10 @@ func (w *Watcher) VoteStatus(messageId [32]byte) (uint8, error) {
 }
 
 func (w *Watcher) Vote(msg DataMsg, currentBlock *big.Int) error {
+
+	rand.Seed(time.Now().UnixNano())
+	time.Sleep(VoteRandTime)
+
 	hasVote, err := w.HasVote(msg.MessageId)
 	if err != nil {
 		return err

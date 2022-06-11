@@ -27,6 +27,7 @@ type Bridge struct {
 }
 
 var ResourceId = "3565375400000000000000000000000000000000000000000000000000000000"
+
 var ValidatorRole = "a95257aebefccffaada4758f028bce81ea992693be70592f620c4c9a0d9e715a"
 var ReLayer = []map[string]string{
 	{

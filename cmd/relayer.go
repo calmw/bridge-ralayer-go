@@ -45,7 +45,7 @@ func main() {
 				if err != nil {
 					return err
 				}
-				engine.GetSignatureCollectedEvent()
+				engine.PollBlocks()
 
 				return nil
 			},
