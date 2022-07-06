@@ -13,26 +13,36 @@ chain_type = "ethereum"
 vote_chain = true
 start_block = 0 # Get the start block from the keystore. If the start block value is 0
 endpoint = "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-bridge_address = "0x451e2ede33b13ff00a3d28f8565032553bf2b486"
+bridge_address = "0x4095dBabd3DCc1a996E57A564Dc909FF1c7D1043"
+
+#[[chains]]
+#chain_name = "Rinkeby"
+#id = 1 # Self defined
+#chain_id = 4
+#chain_type = "ethereum"
+#vote_chain = false
+#start_block = 0 # Get the start block from the keystore. If the start block value is 0
+#endpoint = "https://rinkeby.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+#bridge_address = "0xe0bfb4c2cce940591aea447f4ec64880961421f0"
 
 [[chains]]
-chain_name = "Rinkeby"
+chain_name = "Goerli"
 id = 1 # Self defined
-chain_id = 4
+chain_id = 5
 chain_type = "ethereum"
 vote_chain = false
 start_block = 0 # Get the start block from the keystore. If the start block value is 0
-endpoint = "https://rinkeby.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-bridge_address = "0xe0bfb4c2cce940591aea447f4ec64880961421f0"
+endpoint = "https://eth-goerli.g.alchemy.com/v2/x2TdY1F6pRe4roQKyOVE1UDMBTQ-R8Dk"
+bridge_address = "0xBCaCa40fa8f7060ACA22af80BB368Ebb0a0360f6"
 
-[[chains]]
-chain_name = "Tron"
-id = 5 # Self defined
-chain_id = 6
-chain_type = "tron"
-vote_chain = false
-start_block = 0 # Get the start block from the keystore. If the start block value is 0
-endpoint = "https://nile.trongrid.io"
-bridge_address = "0xe0bfb4c2cce940591aea447f4ec64880961421f0"
+#[[chains]]
+#chain_name = "Tron"
+#id = 3 # Self defined
+#chain_id = 6
+#chain_type = "tron"
+#vote_chain = false
+#start_block = 0 # Get the start block from the keystore. If the start block value is 0
+#endpoint = "https://nile.trongrid.io"
+#bridge_address = "0xe0bfb4c2cce940591aea447f4ec64880961421f0"
 
 
