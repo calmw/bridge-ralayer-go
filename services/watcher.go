@@ -142,7 +142,7 @@ func (w *Watcher) PollBlocks() {
 		err, msg := w.getBridgeEventLogsFromBlock(event.ConfirmedRequestEvent.EventSignature, currentBlock)
 		if err != nil {
 			if errors.Is(err, NoEventErr) {
-				w.Log.Crit("No ConfirmedRequest Event", "block", currentBlock)
+				w.Log.Crit("No ConfirmedRequest Event", "block", currentBlock, "latestBlock", latestBlock)
 			} else {
 				w.Log.Error("Get ConfirmedRequest Event error", "error", err)
 			}
