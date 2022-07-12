@@ -64,7 +64,6 @@ type Chain struct {
 	ChainType  string
 	VoteChain  bool
 	Endpoint   string
-	Handlers   []common.Address
 	Bridge     common.Address
 	StartBlock *big.Int
 }
@@ -88,10 +87,6 @@ func ParseChainConfig(reLayerAddress string) {
 			panic(err)
 		}
 
-		var handlers []common.Address
-		for i := 0; i < len(Config.Chains[i].Handles); i++ {
-			handlers = append(handlers, common.HexToAddress(Config.Chains[i].Handles[i]))
-		}
 		ChainCfg[Config.Chains[i].Id] = Chain{
 			Config.Chains[i].Name,
 			Config.Chains[i].Id,
@@ -99,7 +94,6 @@ func ParseChainConfig(reLayerAddress string) {
 			Config.Chains[i].ChainType,
 			Config.Chains[i].VoteChain,
 			Config.Chains[i].Endpoint,
-			handlers,
 			common.HexToAddress(Config.Chains[i].Bridge),
 			Config.Chains[i].StartBlock,
 		}

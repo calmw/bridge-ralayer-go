@@ -11,12 +11,9 @@ id = 2 # Self defined
 chain_id = 3
 chain_type = "ethereum"
 vote_chain = true
-start_block = 12535845  # Get the start block from the keystore. If the start block value is 0
+start_block = 0  # Get the start block from the keystore. If the start block value is 0
 endpoint = "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-handler_address = [
-    "0xBCaCa40fa8f7060ACA22af80BB368Ebb0a0360f6",
-    "0xBCaCa40fa8f7060ACA22af80BB368Ebb0a0360f6" ]
-bridge_address = "0x4095dBabd3DCc1a996E57A564Dc909FF1c7D1043"
+bridge_address = "0x213e58270647804E8022853a3384d8055B29868E"
 
 #[[chains]]
 #chain_name = "Rinkeby"
@@ -34,12 +31,9 @@ id = 1 # Self defined
 chain_id = 5
 chain_type = "ethereum"
 vote_chain = false
-start_block = 7178115 # Get the start block from the keystore. If the start block value is 0
+start_block = 0 # Get the start block from the keystore. If the start block value is 0
 endpoint = "https://eth-goerli.g.alchemy.com/v2/x2TdY1F6pRe4roQKyOVE1UDMBTQ-R8Dk"
-handler_address = [
-    "0xBCaCa40fa8f7060ACA22af80BB368Ebb0a0360f6",
-    "0xBCaCa40fa8f7060ACA22af80BB368Ebb0a0360f6" ]
-bridge_address = "0xBCaCa40fa8f7060ACA22af80BB368Ebb0a0360f6"
+bridge_address = "0x606fdB397009dd528A972d9D19198cf27d0Bc83A"
 
 #[[chains]]
 #chain_name = "Tron"

@@ -142,9 +142,7 @@ func (w *Watcher) PollBlocks() {
 		w.ParseConfirmedRequestEvent(currentBlock, latestBlock)
 
 		// Parse out CallRequest events
-		for i := 0; i < len(w.Cfg.Handlers); i++ {
-			go w.ParseCallRequestEvent(w.Cfg.Handlers[i], currentBlock, latestBlock)
-		}
+		w.ParseCallRequestEvent(currentBlock, latestBlock)
 
 		w.SetBlockStore(currentBlock)
 
@@ -179,8 +177,8 @@ func (w *Watcher) ParseConfirmedRequestEvent(currentBlock, latestBlock *big.Int)
 	}
 }
 
-func (w *Watcher) ParseCallRequestEvent(contract common.Address, currentBlock, latestBlock *big.Int) {
-	err, msg := w.getBridgeEventLogsFromBlock(contract, event.CallRequestEvent.EventSignature, currentBlock)
+func (w *Watcher) ParseCallRequestEvent(currentBlock, latestBlock *big.Int) {
+	err, msg := w.getBridgeEventLogsFromBlock(w.Cfg.Bridge, event.CallRequestEvent.EventSignature, currentBlock)
 	if err != nil {
 		if errors.Is(err, NoEventErr) {
 			w.Log.Crit("No CallRequest Event", "block", currentBlock, "latestBlock", latestBlock)
@@ -212,7 +210,6 @@ func (w *Watcher) SetBlockStore(blockNumber *big.Int) {
 }
 
 func (w *Watcher) getBridgeEventLogsFromBlock(contract common.Address, sig event.Sig, latestBlock *big.Int) (error, DataMsg) {
-
 	query := eventInternal.BuildQuery(contract, sig, latestBlock, latestBlock)
 
 	// querying for logs
