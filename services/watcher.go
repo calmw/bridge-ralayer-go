@@ -139,52 +139,11 @@ func (w *Watcher) PollBlocks() {
 		}
 
 		// Parse out ConfirmedRequest events
-		err, msg := w.getBridgeEventLogsFromBlock(event.ConfirmedRequestEvent.EventSignature, currentBlock)
-		if err != nil {
-			if errors.Is(err, NoEventErr) {
-				w.Log.Crit("No ConfirmedRequest Event", "block", currentBlock, "latestBlock", latestBlock)
-			} else {
-				w.Log.Error("Get ConfirmedRequest Event error", "error", err)
-			}
-		} else {
-			w.Log.Info("get ConfirmedRequest success ", "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
-			log.Logger.Sugar().Info("get ConfirmedRequest success ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
-
-			// 确认操作放至业务层，暂不处理
-			//message.AllMessage.Save(msg.MessageId, msg.Data, false)
-			//err := w.Vote(msg, currentBlock)
-			//if err != nil {
-			//	w.Log.Error("ConfirmedRequest Vote err", "err", err, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
-			//	log.Logger.Sugar().Error("ConfirmedRequest Vote err ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
-			//		" reLayerAddress=", relayer.ThisReLayer.Address.String())
-			//} else {
-			//	log.Logger.Sugar().Info("ConfirmedRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
-			//		" reLayerAddress=", relayer.ThisReLayer.Address.String())
-			//}
-		}
+		w.ParseConfirmedRequestEvent(currentBlock, latestBlock)
 
 		// Parse out CallRequest events
-		err, msg = w.getBridgeEventLogsFromBlock(event.CallRequestEvent.EventSignature, currentBlock)
-		if err != nil {
-			if errors.Is(err, NoEventErr) {
-				w.Log.Crit("No CallRequest Event", "block", currentBlock)
-			} else {
-				w.Log.Error("Get CallRequest Event error", "error", err)
-			}
-		} else {
-			w.Log.Info("get CallRequest logs success", "block", currentBlock.String(), "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
-			message.AllMessage.Save(msg.MessageId, msg.Data, false)
-			go func() {
-				err := w.Vote(msg, currentBlock)
-				if err != nil {
-					w.Log.Error("CallRequest Vote error", "error", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
-					log.Logger.Sugar().Error("CallRequest Vote error ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
-						" reLayerAddress=", relayer.ThisReLayer.Address.String())
-				} else {
-					log.Logger.Sugar().Info("CallRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
-						" reLayerAddress=", relayer.ThisReLayer.Address.String())
-				}
-			}()
+		for i := 0; i < len(w.Cfg.Handlers); i++ {
+			go w.ParseCallRequestEvent(w.Cfg.Handlers[i], currentBlock, latestBlock)
 		}
 
 		w.SetBlockStore(currentBlock)
@@ -194,6 +153,57 @@ func (w *Watcher) PollBlocks() {
 
 }
 
+func (w *Watcher) ParseConfirmedRequestEvent(currentBlock, latestBlock *big.Int) {
+	err, msg := w.getBridgeEventLogsFromBlock(w.Cfg.Bridge, event.ConfirmedRequestEvent.EventSignature, currentBlock)
+	if err != nil {
+		if errors.Is(err, NoEventErr) {
+			w.Log.Crit("No ConfirmedRequest Event", "block", currentBlock, "latestBlock", latestBlock)
+		} else {
+			w.Log.Error("Get ConfirmedRequest Event error", "error", err)
+		}
+	} else {
+		w.Log.Info("get ConfirmedRequest success ", "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
+		log.Logger.Sugar().Info("get ConfirmedRequest success ", "messageId=", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)), "block", currentBlock.String())
+
+		// 确认操作放至业务层，暂不处理
+		//message.AllMessage.Save(msg.MessageId, msg.Data, false)
+		//err := w.Vote(msg, currentBlock)
+		//if err != nil {
+		//	w.Log.Error("ConfirmedRequest Vote err", "err", err, "messageId", hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+		//	log.Logger.Sugar().Error("ConfirmedRequest Vote err ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+		//		" reLayerAddress=", relayer.ThisReLayer.Address.String())
+		//} else {
+		//	log.Logger.Sugar().Info("ConfirmedRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+		//		" reLayerAddress=", relayer.ThisReLayer.Address.String())
+		//}
+	}
+}
+
+func (w *Watcher) ParseCallRequestEvent(contract common.Address, currentBlock, latestBlock *big.Int) {
+	err, msg := w.getBridgeEventLogsFromBlock(contract, event.CallRequestEvent.EventSignature, currentBlock)
+	if err != nil {
+		if errors.Is(err, NoEventErr) {
+			w.Log.Crit("No CallRequest Event", "block", currentBlock, "latestBlock", latestBlock)
+		} else {
+			w.Log.Error("Get CallRequest Event error", "error", err)
+		}
+	} else {
+		w.Log.Info("get CallRequest logs success", "block", currentBlock.String(), "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+		message.AllMessage.Save(msg.MessageId, msg.Data, false)
+		go func() {
+			err := w.Vote(msg, currentBlock)
+			if err != nil {
+				w.Log.Error("CallRequest Vote error", "error", err, "messageId", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)))
+				log.Logger.Sugar().Error("CallRequest Vote error ", err, " messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+					" reLayerAddress=", relayer.ThisReLayer.Address.String())
+			} else {
+				log.Logger.Sugar().Info("CallRequest Vote success ", "messageId=", "0x"+hex.EncodeToString(utils.Byte32ToByteSlice(msg.MessageId)),
+					" reLayerAddress=", relayer.ThisReLayer.Address.String())
+			}
+		}()
+	}
+}
+
 func (w *Watcher) SetBlockStore(blockNumber *big.Int) {
 	err := relayer.ThisReLayer.SetBlockStore(w.Cfg.Name, blockNumber)
 	if err != nil {
@@ -201,9 +211,9 @@ func (w *Watcher) SetBlockStore(blockNumber *big.Int) {
 	}
 }
 
-func (w *Watcher) getBridgeEventLogsFromBlock(sig event.Sig, latestBlock *big.Int) (error, DataMsg) {
+func (w *Watcher) getBridgeEventLogsFromBlock(contract common.Address, sig event.Sig, latestBlock *big.Int) (error, DataMsg) {
 
-	query := eventInternal.BuildQuery(w.Cfg.Bridge, sig, latestBlock, latestBlock)
+	query := eventInternal.BuildQuery(contract, sig, latestBlock, latestBlock)
 
 	// querying for logs
 	logs, err := w.EthCli.FilterLogs(context.Background(), query)
